@@ -37,7 +37,7 @@ export const createUser = async (req, res) => {
   } catch (error) {
     console.error("Error creating user:", error);
     if (error.code === "23505") {
-      res.status(400).json({ error: "Email already in use" });
+      res.status(400).json({ error: "Email or phone number already in use. Try signing in." });
     } else {
       res.status(500).json({ error: "Server error" });
     }
