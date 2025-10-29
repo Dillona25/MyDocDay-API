@@ -10,11 +10,7 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: "*", // allow all origins for local testing
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type"]
-}));
+app.use(cors());
 
 app.use(express.json());
 
