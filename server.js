@@ -1,10 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import pool from "./db/index.js";
 import userRoutes from "./routes/userRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
 import clinicRoutes from "./routes/clinicRoutes.js"
+import appointmentRoutes from "./routes/appointmentsRoutes.js"
 
 dotenv.config();
 
@@ -23,6 +23,7 @@ app.get("/", (req, res) => {
 app.use("/api/users", userRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/clinics", clinicRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;
