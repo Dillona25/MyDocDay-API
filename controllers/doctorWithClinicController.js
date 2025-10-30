@@ -23,26 +23,29 @@ export const createDoctorWithClinic = async (req, res) => {
     await client.query("BEGIN");
 
     let resolvedClinicId = clinic_id ?? null;
+    let clinicQuery = null; // Track if we created a clinic
 
-    // If no clinic_id provided, create the clinic first
+    // ✅ Create clinic ONLY if no clinic_id but clinic data given
     if (!resolvedClinicId && clinic_name) {
-      const clinicQuery = await client.query(
+      clinicQuery = await client.query(
         `INSERT INTO clinics (clinic_name, clinic_email, clinic_phone, street, city, state, zipcode)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
-         RETURNING clinic_id;`, [
+         RETURNING *;`,
+        [
           clinic_name,
           clinic_email,
           clinic_phone,
           street,
           city,
           state,
-          zipcode
+          zipcode,
         ]
       );
+
       resolvedClinicId = clinicQuery.rows[0].clinic_id;
     }
 
-    // Minimal requirement: doctor must have a name; clinic_id is optional (can be null)
+    // ✅ Validate doctor info
     if (!first_name || !last_name) {
       await client.query("ROLLBACK");
       return res
@@ -50,6 +53,7 @@ export const createDoctorWithClinic = async (req, res) => {
         .json({ error: "Doctor first_name and last_name are required" });
     }
 
+    // ✅ Insert doctor
     const doctorQuery = await client.query(
       `INSERT INTO doctors (user_id, first_name, last_name, specialty, image_url, clinic_id)
        VALUES ($1,$2,$3,$4,$5,$6)
@@ -58,10 +62,15 @@ export const createDoctorWithClinic = async (req, res) => {
     );
 
     await client.query("COMMIT");
+
+    // ✅ Safely return clinic only if it exists
+    const responseClinic = clinicQuery ? clinicQuery.rows[0] : null;
+
     return res.status(201).json({
       doctor: doctorQuery.rows[0],
-      clinic_id: resolvedClinicId ?? null,
+      clinic: responseClinic,
     });
+
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("createDoctorWithClinic error:", err);

@@ -30,7 +30,16 @@ export const createDoctor = async (req, res) => {
 
 export const getUsersDoctor = async (req, res) => {
   try {
-    const query = `SELECT * FROM doctors WHERE user_id = $1 ORDER BY id DESC`;
+    const query = `SELECT 
+    d.*, 
+    c.clinic_name,
+    c.city,
+    c.state,
+    c.zipcode
+    FROM doctors d
+    LEFT JOIN clinics c 
+    ON d.clinic_id = c.clinic_id
+    WHERE d.user_id = $1;`;
     const values = [req.user.id];
     const result = await pool.query(query, values);
 
