@@ -17,7 +17,7 @@ app.use(express.json());
 
 // Base route
 app.get("/", (req, res) => {
-  res.send("MyDocDay backend is running 🚀");
+  res.send("MyDocDay backend is running");
 });
 
 app.use("/api/users", userRoutes);
