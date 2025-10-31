@@ -16,7 +16,7 @@ export const createAppointment = async (req, res) => {
     !doctor_id ||
     !doctor_name ||
     !appointment_title ||
-    !appointment_date
+    !appointment_date || !appointment_time
   ) {
     return res.status(400).json({ error: "Missing required fields" });
   }
