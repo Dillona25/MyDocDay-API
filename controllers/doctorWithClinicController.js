@@ -44,7 +44,7 @@ export const createDoctorWithClinic = async (req, res) => {
       resolvedClinicId = clinicQuery.rows[0].clinic_id;
     }
 
-    if (!first_name || !last_name) {
+    if (!first_name || !last_name || !specialty || !clinic_name) {
       await client.query("ROLLBACK");
       return res
         .status(400)

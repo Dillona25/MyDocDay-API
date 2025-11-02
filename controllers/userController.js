@@ -146,7 +146,21 @@ export const validateDupCreds = async (req, res) => {
   }
 };
 
-export const validatePasswordc= async (req, res) => {
-  
-}
+export const completeOnboarding = async (req, res) => {
+  const { user_id } = req.body;
+  try {
+    const query = `
+      UPDATE users
+      SET onboarding_complete = true
+      WHERE id = $1
+      RETURNING id, onboarding_complete;
+    `;
+    const result = await pool.query(query, [user_id]);
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update onboarding status" });
+  }
+};
+
 

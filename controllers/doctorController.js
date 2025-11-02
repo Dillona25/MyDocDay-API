@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 export const createDoctor = async (req, res) => {
   const { user_id, first_name, last_name, specialty, image_url } = req.body;
 
-  if (!user_id || !first_name || !last_name) {
+  if (!user_id || !first_name || !last_name || !specialty) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 

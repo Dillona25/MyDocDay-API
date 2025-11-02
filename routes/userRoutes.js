@@ -1,5 +1,6 @@
 import express from "express";
-import { createUser, signInUser, validateDupCreds } from "../controllers/userController.js";
+import { completeOnboarding, createUser, signInUser, validateDupCreds } from "../controllers/userController.js";
+import { verifyToken } from "../middlewares/verifyToken.js";
 
 const router = express.Router();
 
@@ -8,6 +9,8 @@ router.post("/signup", createUser)
 router.post("/signin", signInUser)
 
 router.post("/validateDupCreds", validateDupCreds);
+
+router.put("/onboardingComplete", verifyToken, completeOnboarding)
 
 
 export default router;
