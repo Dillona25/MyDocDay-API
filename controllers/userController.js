@@ -2,11 +2,7 @@ import pool from "../db/index.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const hash = await bcrypt.hash("SuperSecret123", 10);
-console.log("new hash", hash);
-
 export const createUser = async (req, res) => {
-
   const { first_name, last_name, email, phone, password } = req.body;
 
   if (!first_name || !last_name || !email || !phone || !password) {
@@ -19,7 +15,7 @@ export const createUser = async (req, res) => {
     const query = `
         INSERT INTO users (first_name, last_name, email, phone, password)
         VALUES ($1, $2, (LOWER($3)), $4, $5)
-        RETURNING id, first_name, last_name, email, phone, created_at;
+        RETURNING id, first_name, last_name, email, phone, created_at, onboarding_complete;
         `;
 
     const values = [first_name, last_name, email, phone, hashedPassword];
@@ -40,11 +36,9 @@ export const createUser = async (req, res) => {
   } catch (error) {
     console.error("Error creating user:", error);
     if (error.code === "23505") {
-      res
-        .status(400)
-        .json({
-          error: "Email or phone number already in use. Try signing in.",
-        });
+      res.status(400).json({
+        error: "Email or phone number already in use. Try signing in.",
+      });
     } else {
       res.status(500).json({ error: "Server error" });
     }
@@ -57,44 +51,45 @@ export const signInUser = async (req, res) => {
   if (!email || !password)
     return res.status(400).json({ error: "Missing email or password" });
 
-   // Normalize the email to match stored format
+  // Normalize the email to match stored format
   email = email.toLowerCase().trim();
 
   try {
     // 1. Find the user in PostgreSQL
     const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 LIMIT 1",
+      `
+  SELECT id, first_name, last_name, email, phone, created_at, onboarding_complete, password
+  FROM users
+  WHERE email = $1
+  LIMIT 1;
+  `,
       [email]
     );
 
-    const user = result.rows[0];
-    if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    // 2. Compare the password
+    const user = result.rows[0];
+
+    // Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    // 3. Create a JWT token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // Remove password before sending
+    const { password: _, ...safeUser } = user;
 
-    // 4. Return token + basic user info
+    // Generate JWT
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    // Return everything the frontend needs
     res.status(200).json({
-      message: "Login successful",
       token,
-      user: {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,  
-        email: user.email,
-      },
+      user: safeUser,
     });
   } catch (err) {
     console.error("Error signing in user:", err);
@@ -163,4 +158,19 @@ export const completeOnboarding = async (req, res) => {
   }
 };
 
+export const getCurrentUser = async (req, res) => {
+  const userId = req.user.id;
 
+  try {
+    const query = `
+      SELECT id, first_name, last_name, email, phone, created_at, onboarding_complete
+      FROM users
+      WHERE id = $1;
+    `;
+    const result = await pool.query(query, [userId]);
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
