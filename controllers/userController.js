@@ -2,7 +2,11 @@ import pool from "../db/index.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
+const hash = await bcrypt.hash("SuperSecret123", 10);
+console.log("new hash", hash);
+
 export const createUser = async (req, res) => {
+
   const { first_name, last_name, email, phone, password } = req.body;
 
   if (!first_name || !last_name || !email || !phone || !password) {
@@ -97,3 +101,52 @@ export const signInUser = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+export const validateDupCreds = async (req, res) => {
+  const { email, phone } = req.body;
+
+  // Quick sanity check
+  if (!email || !phone) {
+    return res.status(400).json({ error: "Missing email or phone" });
+  }
+
+  try {
+    const query = `
+      SELECT email, phone
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+         OR phone = $2
+      LIMIT 1;
+    `;
+
+    const values = [email || "", phone || ""];
+    const result = await pool.query(query, values);
+
+    if (result.rows.length > 0) {
+      const existing = result.rows[0];
+      const emailExists =
+        existing.email?.toLowerCase() === email?.toLowerCase();
+      const phoneExists = existing.phone === phone;
+
+      return res.status(200).json({
+        emailExists,
+        phoneExists,
+        message: "Duplicate found",
+      });
+    }
+
+    return res.status(200).json({
+      emailExists: false,
+      phoneExists: false,
+      message: "No duplicates found",
+    });
+  } catch (error) {
+    console.error("Validation error:", error);
+    return res.status(500).json({ error: "Server error validating user" });
+  }
+};
+
+export const validatePasswordc= async (req, res) => {
+  
+}
+

@@ -25,6 +25,7 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/clinics", clinicRoutes);
 app.use("/api/appointments", appointmentRoutes);
 
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
