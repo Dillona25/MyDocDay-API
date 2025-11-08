@@ -1,15 +1,18 @@
 import pool from "../db/index.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { BadRequestError, ConflictError, InternalServerError } from "../errors/errors.js";
 
 export const createUser = async (req, res) => {
   const { first_name, last_name, email, phone, password } = req.body;
 
   if (!first_name || !last_name || !email || !phone || !password) {
-    return res.status(400).json({ error: "Missing required fields" });
+    throw new BadRequestError(
+      "All fields are required: first name, last name, email, phone, and password."
+    );
   }
 
-  try {
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const query = `
@@ -19,7 +22,13 @@ export const createUser = async (req, res) => {
         `;
 
     const values = [first_name, last_name, email, phone, hashedPassword];
-    const result = await pool.query(query, values);
+    const result = await pool.query(query, values).catch((error) => {
+       if (error.code === "23505") {
+        throw new ConflictError();
+      }
+
+      throw new InternalServerError();
+    });
     const user = result.rows[0];
 
     const token = jwt.sign(
@@ -33,16 +42,6 @@ export const createUser = async (req, res) => {
       user,
       token,
     });
-  } catch (error) {
-    console.error("Error creating user:", error);
-    if (error.code === "23505") {
-      res.status(400).json({
-        error: "Email or phone number already in use. Try signing in.",
-      });
-    } else {
-      res.status(500).json({ error: "Server error" });
-    }
-  }
 };
 
 export const signInUser = async (req, res) => {
