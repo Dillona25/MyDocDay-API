@@ -1,4 +1,5 @@
 import pool from "../db/index.js";
+import { BadRequestError } from "../errors/errors.js";
 
 export const createDoctorWithClinic = async (req, res) => {
   const {
@@ -23,22 +24,14 @@ export const createDoctorWithClinic = async (req, res) => {
     await client.query("BEGIN");
 
     let resolvedClinicId = clinic_id ?? null;
-    let clinicQuery = null; 
+    let clinicQuery = null;
 
     if (!resolvedClinicId && clinic_name) {
       clinicQuery = await client.query(
         `INSERT INTO clinics (clinic_name, clinic_email, clinic_phone, street, city, state, zipcode)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *;`,
-        [
-          clinic_name,
-          clinic_email,
-          clinic_phone,
-          street,
-          city,
-          state,
-          zipcode,
-        ]
+        [clinic_name, clinic_email, clinic_phone, street, city, state, zipcode]
       );
 
       resolvedClinicId = clinicQuery.rows[0].clinic_id;
@@ -46,9 +39,9 @@ export const createDoctorWithClinic = async (req, res) => {
 
     if (!first_name || !last_name || !specialty || !clinic_name) {
       await client.query("ROLLBACK");
-      return res
-        .status(400)
-        .json({ error: "Doctor first_name and last_name are required" });
+      throw new BadRequestError(
+        "All fields are required: first name, last name, speacialty, and clinic name"
+      );
     }
 
     const doctorQuery = await client.query(
@@ -66,7 +59,6 @@ export const createDoctorWithClinic = async (req, res) => {
       doctor: doctorQuery.rows[0],
       clinic: responseClinic,
     });
-
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("createDoctorWithClinic error:", err);
