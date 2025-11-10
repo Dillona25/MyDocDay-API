@@ -1,14 +1,13 @@
 import express from "express";
-import { createDoctor, getUsersDoctor } from "../controllers/doctorController.js";
+import { getUsersDoctor } from "../controllers/doctors.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
-import { createDoctorWithClinic } from "../controllers/doctorWithClinicController.js";
+import { createDoctorWithClinic } from "../controllers/doctors.js";
 
 
 const router = express.Router();
 
 // POST /api/doctors
-router.post("/", verifyToken, createDoctor);
 router.get("/", verifyToken, getUsersDoctor);
-router.post("/createDoctorWithClinic", verifyToken, createDoctorWithClinic);
+router.post("/", verifyToken, createDoctorWithClinic);
 
 export default router;

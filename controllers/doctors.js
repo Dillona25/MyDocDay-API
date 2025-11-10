@@ -67,3 +67,23 @@ export const createDoctorWithClinic = async (req, res) => {
     client.release();
   }
 };
+
+export const getUsersDoctor = async (req, res) => {
+  try {
+    const query = `SELECT 
+    d.*, 
+    c.*
+    FROM doctors d
+    LEFT JOIN clinics c 
+    ON d.clinic_id = c.clinic_id
+    WHERE d.user_id = $1;`;
+    const values = [req.user.id];
+    const result = await pool.query(query, values);
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching doctors:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+

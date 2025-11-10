@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
-import clinicRoutes from "./routes/clinicRoutes.js"
 import appointmentRoutes from "./routes/appointmentsRoutes.js"
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -23,7 +22,6 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", userRoutes);
 app.use("/api/doctors", doctorRoutes);
-app.use("/api/clinics", clinicRoutes);
 app.use("/api/appointments", appointmentRoutes);
 
 app.use(errorHandler);

@@ -182,7 +182,7 @@ export const getCurrentUser = async (req, res) => {
 
   const query = `
     SELECT id, first_name, last_name, email, phone, created_at, onboarding_complete
-    FROM userss
+    FROM users
     WHERE id = $1;
   `;
 
