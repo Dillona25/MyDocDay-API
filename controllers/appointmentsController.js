@@ -1,4 +1,9 @@
 import pool from "../db/index.js";
+import {
+  BadRequestError,
+  InternalServerError,
+  NotFoundError,
+} from "../errors/errors.js";
 
 export const createAppointment = async (req, res) => {
   const {
@@ -86,44 +91,49 @@ export const deleteAppointment = async (req, res) => {
 };
 
 export const updateAppointment = async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body;
+  const appointmentId = req.params.id;
+  const fieldsToUpdate = req.body;
 
-   // If no fields provided, no update to perform
-  if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ error: "No fields provided for update" });
+  if (!appointmentId) {
+    throw new BadRequestError("Missing Appointment ID");
   }
 
+  // If our request body is empty, end the API call
+  if (Object.keys(fieldsToUpdate) === 0) {
+    throw new BadRequestError("No fields provided for update");
+  }
+
+  // Build our SET
+  const setClause = [];
+  const values = [];
+
+  // Loop and fill in our set
+  let index = 1;
+  for (const [key, value] of Object.entries(fieldsToUpdate)) {
+    setClause.push(`${key} = $${index}`);
+    values.push(value);
+    index++;
+  }
+
+  // Add userId as the final param for WHERE clause
+  values.push(appointmentId);
+
+  const query = `UPDATE appointments SET ${setClause.join(", ")}
+  WHERE id = $${index} RETURNING *;`;
+
   try {
-    // Building our SET..
-    const setClauses = [];
-    const values = [];
-    let index = 1;
-
-    // Updates is a KV pair and we push the index to the key and the value is the updated value
-    for (const [key, value] of Object.entries(updates)) {
-      setClauses.push(`${key} = $${index}`);
-      values.push(value);
-      index++;
-    }
-    values.push(id);
-
-    const query = `
-      UPDATE appointments
-      SET ${setClauses.join(", ")}
-      WHERE id = $${index}
-      RETURNING *;
-    `;
-
     const result = await pool.query(query, values);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Appointment not found" });
+      throw new NotFoundError("Appointment not found");
     }
 
-    res.status(200).json(result.rows[0]);
+    res.status(200).json(result.rows);
   } catch (error) {
-    console.error("Error updating appointment:", error);
-    res.status(500).json({ error: "Server error" });
+    if (error.status) {
+      throw error;
+    }
+    
+    throw new InternalServerError("Internal server error");
   }
 };

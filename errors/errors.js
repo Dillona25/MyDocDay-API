@@ -28,6 +28,13 @@ export class ForbiddenError extends AppError {
   }
 }
 
+// 404 - Not found
+export class NotFoundError extends AppError {
+  constructor(message = "Resources not found") {
+    super(message, 404);
+  }
+}
+
 // 409 - conflict error
 export class ConflictError extends AppError {
   constructor(message = "This action could not be completed due to a conflict. The record may already exist.") {
