@@ -92,16 +92,24 @@ export const updateDoctor = async (req, res) => {
   const fieldsToUpdate = req.body;
 
   if (!doctorId) {
-    throw new BadRequestError("No doctor ID provided")
+    throw new BadRequestError("No doctor ID provided");
   }
 
   if (Object.entries(fieldsToUpdate).length === 0) {
-    throw new BadRequestError("No fields provided for update")
+    throw new BadRequestError("No fields provided for update");
   }
 
   // We need to differ between clinic and doctor updates
   const doctorFields = ["first_name", "last_name", "specialty", "image_url"];
-  const clinicFields = ["clinic_name", "address", "city", "state", "zip"];
+  const clinicFields = [
+    "clinic_name",
+    "clinic_email",
+    "clinic_phone",
+    "street",
+    "city",
+    "state",
+    "zipcode",
+  ];
 
   // Building our two different objects of updates
   const doctorUpdates = {};
@@ -156,22 +164,23 @@ export const updateDoctor = async (req, res) => {
       values.push(doctorId);
 
       const query = `
-        UPDATE clinics
-        SET ${set.join(", ")}
-        WHERE id = (SELECT clinic_id FROM doctors WHERE id = $${index})
-        RETURNING *;
-      `;
+      UPDATE clinics AS c
+      SET ${set.join(", ")}
+      FROM doctors AS d
+      WHERE d.id = $${index}
+      AND c.clinic_id = d.clinic_id
+      RETURNING c.*;`;
 
       const result = await pool.query(query, values);
       clinicResult = result.rows[0];
     }
 
-     res.status(200).json({
+    res.status(200).json({
       message: "Doctor and/or clinic updated successfully",
       doctor: doctorResult,
       clinic: clinicResult,
     });
   } catch (error) {
-    throw new InternalServerError("Server Error")
+    throw new InternalServerError("Server Error");
   }
 };
