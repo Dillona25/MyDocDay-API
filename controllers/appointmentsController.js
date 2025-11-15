@@ -83,7 +83,7 @@ export const deleteAppointment = async (req, res) => {
       return res.status(404).json({ error: "Appointment not found" });
     }
 
-    res.status(200).send();
+    res.status(204).send();
   } catch (error) {
     console.error("Error deleting appointment:", error);
     res.status(500).json({ error: "Server error" });

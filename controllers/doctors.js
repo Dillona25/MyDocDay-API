@@ -184,3 +184,23 @@ export const updateDoctor = async (req, res) => {
     throw new InternalServerError("Server Error");
   }
 };
+
+export const deleteDoctor = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const query = `DELETE FROM doctors WHERE id = $1`;
+    const values = [id];
+    const result = await pool.query(query, values);
+
+    // If no rows were deleted, the appointment didn't exist
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting appointment:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
