@@ -187,20 +187,34 @@ export const updateDoctor = async (req, res) => {
 
 export const deleteDoctor = async (req, res) => {
   const { id } = req.params;
+  const client = await pool.connect();
 
   try {
-    const query = `DELETE FROM doctors WHERE id = $1`;
-    const values = [id];
-    const result = await pool.query(query, values);
+    await client.query("BEGIN");
 
-    // If no rows were deleted, the appointment didn't exist
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Appointment not found" });
+    await client.query(
+      "DELETE FROM appointments WHERE doctor_id = $1",
+      [id]
+    );
+
+    const doctorResult = await client.query(
+      "DELETE FROM doctors WHERE id = $1 RETURNING id",
+      [id]
+    );
+
+    if (doctorResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Doctor not found" });
     }
 
-    res.status(204).send();
+    await client.query("COMMIT");
+    return res.status(204).send();
   } catch (error) {
-    console.error("Error deleting appointment:", error);
-    res.status(500).json({ error: "Server error" });
+    await client.query("ROLLBACK");
+    console.error("Error deleting doctor:", error);
+    return res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
   }
 };
+
