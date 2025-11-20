@@ -1,5 +1,9 @@
 import pool from "../db/index.js";
-import { BadRequestError, InternalServerError } from "../errors/errors.js";
+import {
+  BadRequestError,
+  InternalServerError,
+  NotFoundError,
+} from "../errors/errors.js";
 
 export const createDoctorWithClinic = async (req, res) => {
   const {
@@ -37,11 +41,10 @@ export const createDoctorWithClinic = async (req, res) => {
       resolvedClinicId = clinicQuery.rows[0].clinic_id;
     }
 
+    // Handle missing required fields
     if (!first_name || !last_name || !specialty || !clinic_name) {
       await client.query("ROLLBACK");
-      throw new BadRequestError(
-        "All fields are required: first name, last name, speacialty, and clinic name"
-      );
+      throw new BadRequestError();
     }
 
     const doctorQuery = await client.query(
@@ -61,30 +64,30 @@ export const createDoctorWithClinic = async (req, res) => {
     });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("createDoctorWithClinic error:", err);
-    return res.status(500).json({ error: "Server error" });
+    throw err;
   } finally {
     client.release();
   }
 };
 
 export const getUsersDoctor = async (req, res) => {
-  try {
-    const query = `SELECT 
+  const query = `SELECT 
     d.*, 
     c.*
     FROM doctors d
     LEFT JOIN clinics c 
     ON d.clinic_id = c.clinic_id
     WHERE d.user_id = $1;`;
-    const values = [req.user.id];
-    const result = await pool.query(query, values);
+  const values = [req.user.id];
 
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error("Error fetching doctors:", error);
-    res.status(500).json({ error: "Server error" });
+  // Throw error for no user ID
+  if (!req.user?.id) {
+    throw new UnauthorizedError();
   }
+
+  const result = await pool.query(query, values);
+
+  res.status(200).json(result.rows);
 };
 
 export const updateDoctor = async (req, res) => {
@@ -92,11 +95,11 @@ export const updateDoctor = async (req, res) => {
   const fieldsToUpdate = req.body;
 
   if (!doctorId) {
-    throw new BadRequestError("No doctor ID provided");
+    throw new BadRequestError();
   }
 
   if (Object.entries(fieldsToUpdate).length === 0) {
-    throw new BadRequestError("No fields provided for update");
+    throw new BadRequestError();
   }
 
   // We need to differ between clinic and doctor updates
@@ -115,7 +118,6 @@ export const updateDoctor = async (req, res) => {
   const doctorUpdates = {};
   const clinicUpdates = {};
 
-  // TODO: Make sense of this block
   for (const [key, value] of Object.entries(fieldsToUpdate)) {
     if (doctorFields.includes(key)) doctorUpdates[key] = value;
     if (clinicFields.includes(key)) clinicUpdates[key] = value;
@@ -181,7 +183,7 @@ export const updateDoctor = async (req, res) => {
       clinic: clinicResult,
     });
   } catch (error) {
-    throw new InternalServerError("Server Error");
+    throw error;
   }
 };
 
@@ -192,10 +194,7 @@ export const deleteDoctor = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    await client.query(
-      "DELETE FROM appointments WHERE doctor_id = $1",
-      [id]
-    );
+    await client.query("DELETE FROM appointments WHERE doctor_id = $1", [id]);
 
     const doctorResult = await client.query(
       "DELETE FROM doctors WHERE id = $1 RETURNING id",
@@ -204,17 +203,15 @@ export const deleteDoctor = async (req, res) => {
 
     if (doctorResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Doctor not found" });
+      throw new NotFoundError();
     }
 
     await client.query("COMMIT");
     return res.status(204).send();
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Error deleting doctor:", error);
-    return res.status(500).json({ error: "Server error" });
+    throw error;
   } finally {
     client.release();
   }
 };
-

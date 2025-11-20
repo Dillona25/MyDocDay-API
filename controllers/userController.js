@@ -5,16 +5,16 @@ import {
   BadRequestError,
   ConflictError,
   InternalServerError,
+  NotFoundError,
   UnauthorizedError,
 } from "../errors/errors.js";
 
 export const createUser = async (req, res) => {
   const { first_name, last_name, email, phone, password } = req.body;
 
+  // Error handle for required fields
   if (!first_name || !last_name || !email || !phone || !password) {
-    throw new BadRequestError(
-      "All fields are required: first name, last name, email, phone, and password."
-    );
+    throw new BadRequestError();
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -27,6 +27,7 @@ export const createUser = async (req, res) => {
 
   const values = [first_name, last_name, email, phone, hashedPassword];
   const result = await pool.query(query, values).catch((error) => {
+    // Error handle for a duplication.
     if (error.code === "23505") {
       throw new ConflictError();
     }
@@ -51,6 +52,7 @@ export const createUser = async (req, res) => {
 export const signInUser = async (req, res) => {
   let { email, password } = req.body;
 
+  // Erropr handle for required fields
   if (!email || !password) {
     throw new BadRequestError();
   }
@@ -69,16 +71,18 @@ export const signInUser = async (req, res) => {
     [email]
   );
 
+  // Handle for invalid email or password
   if (result.rows.length === 0) {
-    throw new UnauthorizedError("Invalid email or password");
+    throw new UnauthorizedError();
   }
 
   const user = result.rows[0];
 
   // Compare hashed password
   const isMatch = await bcrypt.compare(password, user.password);
+  // If password does not match, throw an auth error
   if (!isMatch) {
-    throw new UnauthorizedError("Invalid email or password");
+    throw new UnauthorizedError();
   }
 
   // Remove password before sending
@@ -96,88 +100,38 @@ export const signInUser = async (req, res) => {
   });
 };
 
-// TODO: Handle this on the frontend with a returned 409 error code.
-// export const validateDupCreds = async (req, res) => {
-//   const { email, phone } = req.body;
-
-//   // Quick sanity check
-//   if (!email || !phone) {
-//     return res.status(400).json({ error: "Missing email or phone" });
-//   }
-
-//   try {
-//     const query = `
-//       SELECT email, phone
-//       FROM users
-//       WHERE LOWER(email) = LOWER($1)
-//          OR phone = $2
-//       LIMIT 1;
-//     `;
-
-//     const values = [email || "", phone || ""];
-//     const result = await pool.query(query, values);
-
-//     if (result.rows.length > 0) {
-//       const existing = result.rows[0];
-//       const emailExists =
-//         existing.email?.toLowerCase() === email?.toLowerCase();
-//       const phoneExists = existing.phone === phone;
-
-//       return res.status(200).json({
-//         emailExists,
-//         phoneExists,
-//         message: "Duplicate found",
-//       });
-//     }
-
-//     return res.status(200).json({
-//       emailExists: false,
-//       phoneExists: false,
-//       message: "No duplicates found",
-//     });
-//   } catch (error) {
-//     console.error("Validation error:", error);
-//     return res.status(500).json({ error: "Server error validating user" });
-//   }
-// };
-
 export const completeOnboarding = async (req, res) => {
   const { user_id } = req.body;
 
+  // Throw error if no user ID. T
   if (!user_id) {
-    throw new BadRequestError("User ID is required.");
+    throw new BadRequestError();
   }
 
-  try {
-    const query = `
+  const query = `
       UPDATE users
       SET onboarding_complete = true
       WHERE id = $1
       RETURNING id, onboarding_complete;
     `;
-    const result = await pool.query(query, [user_id]);
+  const result = await pool.query(query, [user_id]);
 
-    if (result.rows.length === 0) {
-      console.warn(`Onboarding update failed — no user found for ID: ${user_id}`);
-      throw new InternalServerError("Unable to complete onboarding process.");
-    }
-
-    res.status(200).json({
-      message: "Onboarding completed successfully.",
-      user: result.rows[0],
-    });
-  } catch (err) {
-    console.error("Error completing onboarding:", err);
-    throw new InternalServerError("Unable to complete onboarding process.");
+  // If no user ID was found
+  if (result.rows.length === 0) {
+    throw new InternalServerError();
   }
+
+  res.status(200).json({
+    message: "Onboarding completed successfully.",
+    user: result.rows[0],
+  });
 };
 
 export const getCurrentUser = async (req, res) => {
   const userId = req.user?.id;
 
   if (!userId) {
-    console.error("getCurrentUser called without a valid user on req.user");
-    throw new InternalServerError("Unable to fetch user information.");
+    throw new NotFoundError();
   }
 
   const query = `
@@ -186,17 +140,12 @@ export const getCurrentUser = async (req, res) => {
     WHERE id = $1;
   `;
 
-  try {
-    const result = await pool.query(query, [userId]);
+  const result = await pool.query(query, [userId]);
 
-    if (result.rows.length === 0) {
-      console.error(`No user record found for authenticated ID: ${userId}`);
-      throw new InternalServerError("Server error: unable to fetch user information.");
-    }
-
-    res.status(200).json(result.rows[0]);
-  } catch (err) {
-    console.error("Database error retrieving current user:", err);
-    throw new InternalServerError("Server error: unable to fetch user information.");
+  // If the WHERE clause fails. Im making a server error because in MOST cases it will be..
+  if (result.rows.length === 0) {
+    throw new InternalServerError();
   }
+
+  res.status(200).json(result.rows[0]);
 };
