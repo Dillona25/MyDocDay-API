@@ -14,7 +14,7 @@ export const createUser = async (req, res) => {
   console.log(req.body);
 
   // Error handle for required fields
-  if (!first_name || !last_name || !email || !phone || !sms_opt_in || !password) {
+  if (!first_name || !last_name || !email || !phone || typeof sms_opt_in !== "boolean" || !password) {
     throw new BadRequestError();
   }
 
