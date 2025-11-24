@@ -10,22 +10,23 @@ import {
 } from "../errors/errors.js";
 
 export const createUser = async (req, res) => {
-  const { first_name, last_name, email, phone, password } = req.body;
+  const { first_name, last_name, email, phone, sms_opt_in, password } = req.body;
+  console.log(req.body);
 
   // Error handle for required fields
-  if (!first_name || !last_name || !email || !phone || !password) {
+  if (!first_name || !last_name || !email || !phone || !sms_opt_in || !password) {
     throw new BadRequestError();
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const query = `
-        INSERT INTO users (first_name, last_name, email, phone, password)
-        VALUES ($1, $2, (LOWER($3)), $4, $5)
-        RETURNING id, first_name, last_name, email, phone, created_at, onboarding_complete;
+        INSERT INTO users (first_name, last_name, email, phone, sms_opt_in, password)
+        VALUES ($1, $2, (LOWER($3)), $4, $5, $6)
+        RETURNING id, first_name, last_name, email, phone, sms_opt_in, created_at, onboarding_complete;
         `;
 
-  const values = [first_name, last_name, email, phone, hashedPassword];
+  const values = [first_name, last_name, email, phone, sms_opt_in, hashedPassword];
   const result = await pool.query(query, values).catch((error) => {
     // Error handle for a duplication.
     if (error.code === "23505") {
